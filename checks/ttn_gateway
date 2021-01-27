@@ -12,8 +12,8 @@
 # to the Free Software Foundation, Inc., 51 Franklin St,  Fifth Floor,
 # Boston, MA 02110-1301 USA.
 
-#<<<ttn_gateway>>>
-#Markus TTIG (The Things Indoor Gateway 2.0.0):	64
+# <<<ttn_gateway:sep(44)>>>
+# Markus TTIG, The Things Indoor Gateway, 2.0.0, 53
 
 # factory_settings = {}
 # check_info = {}
@@ -31,10 +31,12 @@ def parse_ttn_gateway_info(info):
     # pprint.pprint(info)
     parsed = {}
     for items in info:
-        line = " ".join(items)
-        if not line.startswith("<<<"):
-            (gateway, value) = line.split(":")
-            parsed[gateway.strip()] = value.strip()
+        if len(items) == 4 and not items[0].startswith("<<<"):
+            gateway = items[0].strip()
+            model = items[1].strip()
+            version = items[2].strip()
+            lastseen = items[3].strip()
+            parsed[gateway] = {'model': model, 'version': version, 'lastseen': lastseen}
     return parsed
 
 def inventory_ttn_gateway_lastseen(parsed):
@@ -49,14 +51,16 @@ def check_ttn_gateway_lastseen(item, params, parsed):
         warn, crit = params
     else:
         warn, crit = params['levels']
-    value = saveint(parsed[item])
+    model = parsed[item]['model']
+    version = parsed[item]['version']
+    value = saveint(parsed[item]['lastseen'])
     perfdata = [('last seen', value, warn, crit)]
     if value < warn:
-        yield 0, "%d s since last seen" % value, perfdata
+        yield 0, "Model: %s, Version: %s -- %d s since last seen" % (model, version, value), perfdata
     elif value < crit:
-        yield 1, "%d s since last seen" % value, perfdata
+        yield 1, "Model: %s, Version: %s -- %d s since last seen" % (model, version, value), perfdata
     else:
-        yield 2, "%d s since last seen" % value, perfdata
+        yield 2, "Model: %s, Version: %s -- %d s since last seen" % (model, version, value), perfdata
 
 check_info["ttn_gateway"] = {
     'parse_function'      : parse_ttn_gateway_info,
@@ -67,12 +71,11 @@ check_info["ttn_gateway"] = {
     'default_levels_variable' :  'ttn_gateway_lastseen_default_levels'
 }
 
-# info = ["<<<ttn_gateway>>>",
-#     "Markus TTIG (The Things Indoor Gateway 2.0.0):	64"]
+# info = ["Markus TTIG, The Things Indoor Gateway, 2.0.0, 53".split(",")]
 
 # parsed = parse_ttn_gateway_info(info)
 # for service in inventory_ttn_gateway_lastseen(parsed):
 #     print(service)
 
-# for service in check_ttn_gateway_lastseen("Markus TTIG (The Things Indoor Gateway 2.0.0)", factory_settings["ttn_gateway_lastseen_default_levels"], parsed):
+# for service in check_ttn_gateway_lastseen("Markus TTIG", factory_settings["ttn_gateway_lastseen_default_levels"], parsed):
 #     print(service)

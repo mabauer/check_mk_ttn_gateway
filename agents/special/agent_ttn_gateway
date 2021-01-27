@@ -53,6 +53,18 @@ class TtnGateway:
             version = " " + version
         return "{description} ({model}{version})".format(description=self.description, model=model, version=version)
 
+    def get_model_string(self):
+        model = self.model
+        if model == "":
+            model = "Unknown"
+        return model
+
+    def get_version_string(self):
+        version = self.version
+        if version == "":
+            version = "Unknown"
+        return version
+
     def seconds_since_lastseen(self):
         seconds_since_lastseen = (datetime.now(tzutc())-self.last_seen).total_seconds()
         return seconds_since_lastseen
@@ -68,8 +80,8 @@ def main():
     if len(sys.argv) > 1:
         eui = sys.argv[1]
     gw = TtnGateway.create_by_eui(eui)
-    print("<<<ttn_gateway>>>")
-    print("%s:\t%d" % (gw, gw.seconds_since_lastseen()))
+    print("<<<ttn_gateway:sep(44)>>>")
+    print("%s, %s, %s, %d" % (gw.description, gw.get_model_string(), gw.get_version_string(), gw.seconds_since_lastseen()))
 
 if __name__ == "__main__": 
     main()
