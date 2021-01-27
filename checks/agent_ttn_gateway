@@ -1,0 +1,9 @@
+#!/usr/bin/python
+# -*- mode: Python; encoding: utf-8; py-indent-offset: 4 -*-
+
+def agent_ttn_gateway_arguments(params, hostname, ipaddress):
+    args = []
+    args.append(params['eui'])
+    return args
+
+special_agent_info['ttn_gateway'] = agent_ttn_gateway_arguments

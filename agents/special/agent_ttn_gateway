@@ -1,0 +1,75 @@
+#!/usr/bin/python
+# -*- mode: Python; encoding: utf-8; py-indent-offset: 4 -*-
+
+from datetime import datetime
+from dateutil.parser import *
+from dateutil.tz import *
+import requests
+from requests.models import Response
+import sys
+
+EUI = "eui-58a0cbfffe801e54"
+NETWORK_API_URL = "https://www.thethingsnetwork.org"
+
+class ApiError(Exception):
+    pass
+
+class TtnGateway:
+
+    def __init__(self, eui, description, last_seen):
+        self.eui = eui
+        self.description = description
+        self.last_seen = last_seen
+        self.model = ""
+        self.version = ""
+
+    @classmethod
+    def create_by_eui(cls, eui):
+        resp  = get_gateway(eui)
+        if resp.status_code != 200:
+            raise ApiError('Cannot get gateway: {}'.format(resp.status_code))
+        gws = resp.json()
+        if eui not in gws:
+            raise ApiError('Cannot find status of gateway {} in response'.format(eui))
+        # print(gws[eui])
+        gw = gws[eui]
+        description = gw["description"]
+        last_seen = parse(gw["last_seen"])
+        # print("Last seen: %s" % last_seen)
+        result = TtnGateway(eui, description, last_seen)
+        if "attributes" in gw:
+            if "model" in gw["attributes"]:
+                result.model = gw["attributes"]["model"]
+            if "version" in gw["attributes"]:
+                result.version = gw["attributes"]["version"]
+        return result
+
+    def __str__(self):
+        model = self.model
+        if model == "":
+            model = "Unknown model" 
+        version = self.version
+        if version != "":
+            version = " " + version
+        return "{description} ({model}{version})".format(description=self.description, model=model, version=version)
+
+    def seconds_since_lastseen(self):
+        seconds_since_lastseen = (datetime.now(tzutc())-self.last_seen).total_seconds()
+        return seconds_since_lastseen
+
+def get_gateway(eui):
+    query = "/gateway-data/gateway/{eui}"
+    cmd = query.format(eui=eui)
+    resp = requests.get(NETWORK_API_URL + cmd)
+    return resp
+
+def main():
+    eui = EUI
+    if len(sys.argv) > 1:
+        eui = sys.argv[1]
+    gw = TtnGateway.create_by_eui(eui)
+    print("<<<ttn_gateway>>>")
+    print("%s:\t%d" % (gw, gw.seconds_since_lastseen()))
+
+if __name__ == "__main__": 
+    main()

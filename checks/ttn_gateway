@@ -1,0 +1,78 @@
+#!/usr/bin/python
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+
+# This is free software;  you can redistribute it and/or modify it
+# under the  terms of the  GNU General Public License  as published by
+# the Free Software Foundation in version 2.  This file is distributed
+# in the hope that it will be useful, but WITHOUT ANY WARRANTY;  with-
+# out even the implied warranty of  MERCHANTABILITY  or  FITNESS FOR A
+# PARTICULAR PURPOSE. See the  GNU General Public License for more de-
+# ails.  You should have  received  a copy of the  GNU  General Public
+# License along with GNU Make; see the file  COPYING.  If  not,  write
+# to the Free Software Foundation, Inc., 51 Franklin St,  Fifth Floor,
+# Boston, MA 02110-1301 USA.
+
+#<<<ttn_gateway>>>
+#Markus TTIG (The Things Indoor Gateway 2.0.0):	64
+
+# factory_settings = {}
+# check_info = {}
+# def saveint(x):
+#     try:
+#         return int(x)
+#     except:
+#         return 0
+
+factory_settings["ttn_gateway_lastseen_default_levels"] = {
+    "levels": (10*60, 15*60)
+}
+
+def parse_ttn_gateway_info(info):
+    # pprint.pprint(info)
+    parsed = {}
+    for items in info:
+        line = " ".join(items)
+        if not line.startswith("<<<"):
+            (gateway, value) = line.split(":")
+            parsed[gateway.strip()] = value.strip()
+    return parsed
+
+def inventory_ttn_gateway_lastseen(parsed):
+    # pprint.pprint(parsed)
+    for gateway in parsed:
+        yield gateway, None
+
+def check_ttn_gateway_lastseen(item, params, parsed):
+    if not parsed or item not in parsed:
+        return
+    if isinstance(params, tuple):
+        warn, crit = params
+    else:
+        warn, crit = params['levels']
+    value = saveint(parsed[item])
+    perfdata = [('last seen', value, warn, crit)]
+    if value < warn:
+        yield 0, "%d s since last seen" % value, perfdata
+    elif value < crit:
+        yield 1, "%d s since last seen" % value, perfdata
+    else:
+        yield 2, "%d s since last seen" % value, perfdata
+
+check_info["ttn_gateway"] = {
+    'parse_function'      : parse_ttn_gateway_info,
+    'check_function'      : check_ttn_gateway_lastseen,
+    'inventory_function'  : inventory_ttn_gateway_lastseen,
+    'has_perfdata'        : True,
+    'service_description' : 'TTN Gateway %s',
+    'default_levels_variable' :  'ttn_gateway_lastseen_default_levels'
+}
+
+# info = ["<<<ttn_gateway>>>",
+#     "Markus TTIG (The Things Indoor Gateway 2.0.0):	64"]
+
+# parsed = parse_ttn_gateway_info(info)
+# for service in inventory_ttn_gateway_lastseen(parsed):
+#     print(service)
+
+# for service in check_ttn_gateway_lastseen("Markus TTIG (The Things Indoor Gateway 2.0.0)", factory_settings["ttn_gateway_lastseen_default_levels"], parsed):
+#     print(service)
