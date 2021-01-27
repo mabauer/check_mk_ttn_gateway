@@ -31,7 +31,7 @@ def parse_ttn_gateway_info(info):
     # pprint.pprint(info)
     parsed = {}
     for items in info:
-        if len(items) == 4 and not items[0].startswith("<<<"):
+        if len(items) == 4:
             gateway = items[0].strip()
             model = items[1].strip()
             version = items[2].strip()
@@ -54,13 +54,14 @@ def check_ttn_gateway_lastseen(item, params, parsed):
     model = parsed[item]['model']
     version = parsed[item]['version']
     value = saveint(parsed[item]['lastseen'])
+    msg = "Model: %s, Version: %s -- %d s since last seen" % (model, version, value)
     perfdata = [('last seen', value, warn, crit)]
     if value < warn:
-        yield 0, "Model: %s, Version: %s -- %d s since last seen" % (model, version, value), perfdata
+        yield 0, msg, perfdata
     elif value < crit:
-        yield 1, "Model: %s, Version: %s -- %d s since last seen" % (model, version, value), perfdata
+        yield 1, msg, perfdata
     else:
-        yield 2, "Model: %s, Version: %s -- %d s since last seen" % (model, version, value), perfdata
+        yield 2, msg, perfdata
 
 check_info["ttn_gateway"] = {
     'parse_function'      : parse_ttn_gateway_info,
