@@ -4,12 +4,42 @@
 from datetime import datetime
 from dateutil.parser import *
 from dateutil.tz import *
+from subprocess import Popen, PIPE
+import shlex
 import requests
 from requests.models import Response
 import sys
+import re
 
 EUI = "eui-58a0cbfffe801e54"
+
+
 NETWORK_API_URL = "https://www.thethingsnetwork.org"
+
+TTNCTL_GATEWAY_INFO_CMD = "ttnctl gateway info {eui}"
+TTNCTL_GATEWAY_STATUS_CMD = "ttnctl gateway status {eui}"
+
+
+def get_gateway(eui):
+    query = "/gateway-data/gateway/{eui}"
+    cmd = query.format(eui=eui)
+    resp = requests.get(NETWORK_API_URL + cmd)
+    return resp
+
+
+def run_ttnctl_cmd(cmd, eui):
+    data = {}
+    process = Popen(shlex.split(cmd.format(eui=eui)), stdout=PIPE)
+    (output, err) = process.communicate()
+    exit_code = process.wait()
+    if exit_code != 0:
+        return data
+    for line in output.decode().splitlines():
+        if ":" in line:
+            (key, value) = line.split(":", maxsplit = 1)
+            data[key.strip()] = value.strip()
+    return data
+
 
 class ApiError(Exception):
     pass
@@ -22,9 +52,10 @@ class TtnGateway:
         self.last_seen = last_seen
         self.model = ""
         self.version = ""
+        self.data = {}
 
     @classmethod
-    def create_by_eui(cls, eui):
+    def create_by_eui_via_api(cls, eui):
         resp  = get_gateway(eui)
         if resp.status_code != 200:
             raise ApiError('Cannot get gateway: {}'.format(resp.status_code))
@@ -42,6 +73,44 @@ class TtnGateway:
                 result.model = gw["attributes"]["model"]
             if "version" in gw["attributes"]:
                 result.version = gw["attributes"]["version"]
+        return result
+
+    @classmethod
+    def create_by_eui(cls, eui):
+        data = {}
+        info = run_ttnctl_cmd(TTNCTL_GATEWAY_INFO_CMD, eui)
+        if not info:
+            return None
+        for key in info:
+            data[key] = info[key]
+        status = run_ttnctl_cmd(TTNCTL_GATEWAY_STATUS_CMD, eui)
+        if not status:
+            return None
+        for key in status:
+            data[key] = status[key]
+        if "Description" in data:
+            description = data["Description"]
+        else:
+            return None
+        if "Last seen" in data:
+            # Remove additional last time zone specification, 
+            # i.e. the CET in "2021-02-25 11:16:20.096797464 +0100 CET"
+            last_seen_str = re.sub("(\s\w{3})$", "", data["Last seen"])
+            print(last_seen_str)
+            last_seen = parse(last_seen_str)
+        else: 
+            return None
+        result = TtnGateway(eui, description, last_seen)
+        if "Model" in data:
+            result.model = data["Model"]
+        # Try to fish out a version number from "Platform", a version number is anything like 1.12[.17-beta9]
+        if "Platform" in data:
+            platform_str = data["Platform"]
+            mo = re.search("(\d+(\.\d+)+\-*\w*)", platform_str)
+            if mo:
+                version = mo.group(1)
+                result.version = version
+        result.data = data
         return result
 
     def __str__(self):
@@ -69,19 +138,14 @@ class TtnGateway:
         seconds_since_lastseen = (datetime.now(tzutc())-self.last_seen).total_seconds()
         return seconds_since_lastseen
 
-def get_gateway(eui):
-    query = "/gateway-data/gateway/{eui}"
-    cmd = query.format(eui=eui)
-    resp = requests.get(NETWORK_API_URL + cmd)
-    return resp
-
 def main():
     eui = EUI
     if len(sys.argv) > 1:
         eui = sys.argv[1]
     gw = TtnGateway.create_by_eui(eui)
     print("<<<ttn_gateway:sep(44)>>>")
-    print("%s, %s, %s, %d" % (gw.description, gw.get_model_string(), gw.get_version_string(), gw.seconds_since_lastseen()))
+    if gw is not None:
+        print("%s, %s, %s, %d" % (gw.description, gw.get_model_string(), gw.get_version_string(), gw.seconds_since_lastseen()))
 
 if __name__ == "__main__": 
     main()
