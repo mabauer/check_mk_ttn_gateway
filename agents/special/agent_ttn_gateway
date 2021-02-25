@@ -36,7 +36,7 @@ def run_ttnctl_cmd(cmd, eui):
         return data
     for line in output.decode().splitlines():
         if ":" in line:
-            (key, value) = line.split(":", maxsplit = 1)
+            (key, value) = line.split(":", 1)
             data[key.strip()] = value.strip()
     return data
 
