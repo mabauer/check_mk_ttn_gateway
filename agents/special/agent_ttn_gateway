@@ -95,7 +95,7 @@ class TtnGateway:
         if "Last seen" in data:
             # Remove additional last time zone specification, 
             # i.e. the CET in "2021-02-25 11:16:20.096797464 +0100 CET"
-            last_seen_str = re.sub("(\s\w{3})$", "", data["Last seen"])
+            last_seen_str = re.sub("(\s\w{3,4})$", "", data["Last seen"])
             print(last_seen_str)
             last_seen = parse(last_seen_str)
         else: 
